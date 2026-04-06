@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digital Notice Board</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            color: white;
+            text-align: center;
+            font-family: Arial;
+        }
+
+        .notice {
+            display: none;
+        }
+
+        img, video {
+            max-width: 90%;
+            max-height: 80vh;
+        }
+    </style>
+</head>
+
+<body>
+
+{% for notice in notices %}
+<div class="notice" data-duration="{{ notice[5] }}">
+
+    <h1>{{ notice[1] }}</h1>
+
+    {% if notice[3] == 'text' %}
+        <p>{{ notice[2] }}</p>
+
+    {% elif notice[3] == 'image' %}
+        <img src="{{ notice[4] }}">
+
+    {% elif notice[3] == 'video' %}
+        <video src="{{ notice[4] }}" autoplay muted></video>
+
+    {% elif notice[3] == 'slideshow' %}
+        {% for img in notice[7] %}
+            <img class="slide" src="{{ img }}" style="display:none;">
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endfor %}
+
+<script>
+let notices = document.querySelectorAll('.notice');
+let index = 0;
+
+function showNotice(i) {
+    notices.forEach(n => n.style.display = "none");
+    let current = notices[i];
+    current.style.display = "block";
+
+    let duration = current.dataset.duration * 1000;
+
+    // slideshow logic
+    let slides = current.querySelectorAll('.slide');
+    if (slides.length > 0) {
+        let s = 0;
+        slides.forEach(img => img.style.display = "none");
+
+        function showSlide() {
+            slides.forEach(img => img.style.display = "none");
+            slides[s].style.display = "block";
+            s = (s + 1) % slides.length;
+        }
+
+        showSlide();
+        setInterval(showSlide, 3000);
+    }
+
+    setTimeout(() => {
+        index = (index + 1) % notices.length;
+        showNotice(index);
+    }, duration);
+}
+
+showNotice(0);
+</script>
+
+</body>
+</html>
