@@ -1,6 +1,6 @@
 import os
 import sqlite3
-import time   # ✅ ADDED
+import time
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
@@ -15,14 +15,15 @@ IMAGE_FOLDER = os.path.join(BASE_PATH, "static/images")
 VIDEO_FOLDER = os.path.join(BASE_PATH, "static/videos")
 SLIDES_FOLDER = os.path.join(BASE_PATH, "static/slides")
 
-# ✅ ADDED: global version tracker
 LAST_UPDATED = time.time()
 
 # ------------------ DATABASE ------------------
 def get_db():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row   # ✅ IMPORTANT (gives dict-like access)
+    return conn
 
-# ------------------ VERSION API (NEW) ------------------
+# ------------------ VERSION API ------------------
 @app.route('/api/version')
 def get_version():
     return jsonify({"version": LAST_UPDATED})
@@ -39,24 +40,28 @@ def home():
     notices = []
 
     for row in rows:
-        notice = list(row)
+        notice = {
+            "id": row["id"],
+            "title": row["title"],
+            "type": row["media_type"],
+            "content": row["content"],
+            "file": row["file_path"],
+            "duration": row["duration"],
+            "slides": []
+        }
 
-        if row[3] == 'slideshow' and row[4]:
-            folder = os.path.join(BASE_PATH, row[4])
+        # Handle slideshow images
+        if notice["type"] == "slideshow" and notice["file"]:
+            folder = os.path.join(BASE_PATH, notice["file"])
             if os.path.exists(folder):
                 images = os.listdir(folder)
-                images = [row[4] + img for img in images]
-                notice.append(images)
-            else:
-                notice.append([])
-        else:
-            notice.append([])
+                notice["slides"] = [notice["file"] + img for img in images]
 
         notices.append(notice)
 
     return render_template('index.html', notices=notices)
 
-# ------------------ GET ALL NOTICES (READ) ------------------
+# ------------------ GET ALL NOTICES ------------------
 @app.route('/notices', methods=['GET'])
 def get_notices():
     if request.headers.get("API-KEY") != "mysecret":
@@ -68,12 +73,12 @@ def get_notices():
     rows = cursor.fetchall()
     conn.close()
 
-    return jsonify(rows)
+    return jsonify([dict(row) for row in rows])
 
-# ------------------ UPLOAD (CREATE) ------------------
+# ------------------ UPLOAD ------------------
 @app.route('/upload', methods=['POST'])
 def upload():
-    global LAST_UPDATED   # ✅ ADDED
+    global LAST_UPDATED
 
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
@@ -129,14 +134,14 @@ def upload():
     conn.commit()
     conn.close()
 
-    LAST_UPDATED = time.time()   # ✅ ADDED
+    LAST_UPDATED = time.time()
 
     return jsonify({"status": "success", "id": notice_id})
 
 # ------------------ UPDATE ------------------
 @app.route('/update/<int:notice_id>', methods=['POST'])
 def update_notice(notice_id):
-    global LAST_UPDATED   # ✅ ADDED
+    global LAST_UPDATED
 
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
@@ -160,14 +165,14 @@ def update_notice(notice_id):
     conn.commit()
     conn.close()
 
-    LAST_UPDATED = time.time()   # ✅ ADDED
+    LAST_UPDATED = time.time()
 
     return jsonify({"status": "updated"})
 
 # ------------------ DELETE ------------------
 @app.route('/delete/<int:notice_id>', methods=['DELETE'])
 def delete_notice(notice_id):
-    global LAST_UPDATED   # ✅ ADDED
+    global LAST_UPDATED
 
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
@@ -179,7 +184,8 @@ def delete_notice(notice_id):
     row = cursor.fetchone()
 
     if row:
-        file_path, media_type = row
+        file_path = row["file_path"]
+        media_type = row["media_type"]
 
         if file_path:
             full_path = os.path.join(BASE_PATH, file_path)
@@ -197,7 +203,7 @@ def delete_notice(notice_id):
     conn.commit()
     conn.close()
 
-    LAST_UPDATED = time.time()   # ✅ ADDED
+    LAST_UPDATED = time.time()
 
     return jsonify({"status": "deleted"})
 
