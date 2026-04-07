@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+</head>
+
+<body>
+
+<h2>Upload Notice</h2>
+
+<form action="/upload" method="POST" enctype="multipart/form-data">
+
+    <input type="text" name="title" placeholder="Title" required><br><br>
+
+    <select name="media_type" onchange="toggleFields(this.value)">
+        <option value="text">Text</option>
+        <option value="image">Image</option>
+        <option value="video">Video</option>
+        <option value="slideshow">Slideshow</option>
+    </select><br><br>
+
+    <div id="textField">
+        <textarea name="content" placeholder="Enter text"></textarea><br><br>
+    </div>
+
+    <div id="fileField" style="display:none;">
+        <input type="file" name="file"><br><br>
+    </div>
+
+    <div id="slideField" style="display:none;">
+        <input type="file" name="files" multiple><br><br>
+    </div>
+
+    <input type="number" name="duration" placeholder="Duration (sec)"><br><br>
+
+    <button type="submit">Upload</button>
+
+</form>
+
+<script>
+function toggleFields(type) {
+    document.getElementById('textField').style.display = (type === 'text') ? 'block' : 'none';
+    document.getElementById('fileField').style.display = (type === 'image' || type === 'video') ? 'block' : 'none';
+    document.getElementById('slideField').style.display = (type === 'slideshow') ? 'block' : 'none';
+}
+</script>
+
+</body>
+</html>

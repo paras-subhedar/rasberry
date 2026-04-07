@@ -46,27 +46,13 @@ def home():
 
     return render_template('index.html', notices=notices)
 
-# ------------------ GET ALL NOTICES (READ) ------------------
-@app.route('/notices', methods=['GET'])
-def get_notices():
-    if request.headers.get("API-KEY") != "mysecret":
-        return "Unauthorized", 403
-
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM notices ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-
-    return jsonify(rows)
-
-# ------------------ UPLOAD (CREATE) ------------------
+# ------------------ UPLOAD API ------------------
 @app.route('/upload', methods=['POST'])
 def upload():
+    # simple security
     print("REQUEST RECEIVED")
-    print("FORM DATA:", request.form)
-    print("FILES:", request.files)
-
+    print("FORM DATA:",request.form)
+    print("FILES:",request.files)
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
 
@@ -83,6 +69,7 @@ def upload():
     """, (title, media_type, duration))
 
     notice_id = cursor.lastrowid
+
     db_path = None
 
     if media_type == 'image':
@@ -121,71 +108,7 @@ def upload():
     conn.commit()
     conn.close()
 
-    return jsonify({"status": "success", "id": notice_id})
-
-# ------------------ UPDATE ------------------
-@app.route('/update/<int:notice_id>', methods=['POST'])
-def update_notice(notice_id):
-    if request.headers.get("API-KEY") != "mysecret":
-        return "Unauthorized", 403
-
-    title = request.form.get('title')
-    content = request.form.get('content')
-    duration = request.form.get('duration')
-
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Update only provided fields
-    if title:
-        cursor.execute("UPDATE notices SET title=? WHERE id=?", (title, notice_id))
-
-    if content:
-        cursor.execute("UPDATE notices SET content=? WHERE id=?", (content, notice_id))
-
-    if duration:
-        cursor.execute("UPDATE notices SET duration=? WHERE id=?", (duration, notice_id))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"status": "updated"})
-
-# ------------------ DELETE ------------------
-@app.route('/delete/<int:notice_id>', methods=['DELETE'])
-def delete_notice(notice_id):
-    if request.headers.get("API-KEY") != "mysecret":
-        return "Unauthorized", 403
-
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Get file path before deleting
-    cursor.execute("SELECT file_path, media_type FROM notices WHERE id=?", (notice_id,))
-    row = cursor.fetchone()
-
-    if row:
-        file_path, media_type = row
-
-        # Delete files if exist
-        if file_path:
-            full_path = os.path.join(BASE_PATH, file_path)
-
-            if media_type == 'slideshow':
-                if os.path.exists(full_path):
-                    for f in os.listdir(full_path):
-                        os.remove(os.path.join(full_path, f))
-                    os.rmdir(full_path)
-            else:
-                if os.path.exists(full_path):
-                    os.remove(full_path)
-
-    # Delete DB row
-    cursor.execute("DELETE FROM notices WHERE id=?", (notice_id,))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"status": "deleted"})
+    return jsonify({"status": "success"})
 
 # ------------------ RUN ------------------
 if __name__ == '__main__':
