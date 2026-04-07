@@ -1,49 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Panel</title>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-<h2>Upload Notice</h2>
+<h1 class="title">📺 Digital Notice Board</h1>
 
-<form action="/upload" method="POST" enctype="multipart/form-data">
+<div class="grid">
+    <div class="card" onclick="openModal('addModal')">➕ Add</div>
+    <div class="card" onclick="loadNotices()">👁 View</div>
+</div>
 
-    <input type="text" name="title" placeholder="Title" required><br><br>
+<!-- ================= ADD MODAL ================= -->
+<div id="addModal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeModal('addModal')">&times;</span>
 
-    <select name="media_type" onchange="toggleFields(this.value)">
-        <option value="text">Text</option>
-        <option value="image">Image</option>
-        <option value="video">Video</option>
-        <option value="slideshow">Slideshow</option>
-    </select><br><br>
+<h2>Add Notice</h2>
 
-    <div id="textField">
-        <textarea name="content" placeholder="Enter text"></textarea><br><br>
-    </div>
+<form id="addForm" enctype="multipart/form-data">
 
-    <div id="fileField" style="display:none;">
-        <input type="file" name="file"><br><br>
-    </div>
+<input type="text" name="title" placeholder="Title" required>
 
-    <div id="slideField" style="display:none;">
-        <input type="file" name="files" multiple><br><br>
-    </div>
+<select name="media_type" onchange="toggleFields(this.value)">
+    <option value="text">Text</option>
+    <option value="image">Image</option>
+    <option value="video">Video</option>
+    <option value="slideshow">Slideshow</option>
+</select>
 
-    <input type="number" name="duration" placeholder="Duration (sec)"><br><br>
+<div id="textField">
+    <textarea name="content" placeholder="Enter text"></textarea>
+</div>
 
-    <button type="submit">Upload</button>
+<div id="fileField" style="display:none;">
+    <input type="file" name="file">
+</div>
+
+<div id="slideField" style="display:none;">
+    <input type="file" name="files" multiple>
+</div>
+
+<input type="number" name="duration" placeholder="Duration">
+
+<button type="submit" class="btn">Upload</button>
 
 </form>
+</div>
+</div>
 
-<script>
-function toggleFields(type) {
-    document.getElementById('textField').style.display = (type === 'text') ? 'block' : 'none';
-    document.getElementById('fileField').style.display = (type === 'image' || type === 'video') ? 'block' : 'none';
-    document.getElementById('slideField').style.display = (type === 'slideshow') ? 'block' : 'none';
-}
-</script>
+<!-- ================= VIEW SECTION ================= -->
+<div id="viewSection" class="view-section" style="display:none;">
+<h2>All Notices</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>Type</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<!-- ================= UPDATE MODAL ================= -->
+<div id="updateModal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeModal('updateModal')">&times;</span>
+
+<h2>Update Notice</h2>
+
+<form id="updateForm">
+<input type="hidden" id="updateId">
+
+<input type="text" id="updateTitle" placeholder="Title" required>
+<textarea id="updateContent" placeholder="Content"></textarea>
+
+<input type="number" id="updateDuration" placeholder="Duration">
+
+<button type="submit" class="btn">Update</button>
+
+</form>
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>
 </html>

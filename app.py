@@ -2,8 +2,10 @@ import os
 import sqlite3
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 BASE_PATH = "/home/jcoetee/noticeboard"
 DB_PATH = os.path.join(BASE_PATH, "database.db")

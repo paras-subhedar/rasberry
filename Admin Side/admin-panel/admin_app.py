@@ -2,20 +2,20 @@ from flask import Flask, render_template, request, redirect, flash
 import requests
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"   # needed for flash messages
+app.secret_key = "supersecretkey"
 
-# 👉 CHANGE THIS to your Raspberry Pi IP / public URL
-PI_URL = "http://192.168.137.251:5000/upload"
-
-# 👉 API key must match Raspberry Pi app.py
+BASE_URL = "http://192.168.137.251:5000"
 API_KEY = "mysecret"
 
-# ---------------- HOME ----------------
+HEADERS = {"API-KEY": API_KEY}
+
+# ---------------- HOME (UPLOAD PAGE) ----------------
 @app.route('/')
 def index():
     return render_template('admin.html')
 
-# ---------------- UPLOAD ----------------
+
+# ---------------- CREATE (UPLOAD) ----------------
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
@@ -29,18 +29,14 @@ def upload():
             "duration": duration
         }
 
-        headers = {
-            "API-KEY": API_KEY
-        }
-
         # -------- TEXT --------
         if media_type == 'text':
             data["content"] = request.form['content']
 
             response = requests.post(
-                PI_URL,
+                f"{BASE_URL}/upload",
                 data=data,
-                headers=headers
+                headers=HEADERS
             )
 
         # -------- IMAGE / VIDEO --------
@@ -56,10 +52,10 @@ def upload():
             }
 
             response = requests.post(
-                PI_URL,
+                f"{BASE_URL}/upload",
                 data=data,
                 files=files,
-                headers=headers
+                headers=HEADERS
             )
 
         # -------- SLIDESHOW --------
@@ -77,17 +73,16 @@ def upload():
                 )
 
             response = requests.post(
-                PI_URL,
+                f"{BASE_URL}/upload",
                 data=data,
                 files=files,
-                headers=headers
+                headers=HEADERS
             )
 
         else:
             flash("Invalid media type")
             return redirect('/')
 
-        # -------- RESPONSE CHECK --------
         if response.status_code == 200:
             flash("✅ Upload successful!")
         else:
@@ -97,6 +92,75 @@ def upload():
         flash(f"⚠️ Error: {str(e)}")
 
     return redirect('/')
+
+
+# ---------------- READ (VIEW ALL NOTICES) ----------------
+@app.route('/view')
+def view():
+    try:
+        response = requests.get(f"{BASE_URL}/notices", headers=HEADERS)
+
+        if response.status_code == 200:
+            notices = response.json()
+        else:
+            notices = []
+            flash("❌ Failed to fetch notices")
+
+    except Exception as e:
+        notices = []
+        flash(f"⚠️ Error: {str(e)}")
+
+    return render_template('view.html', notices=notices)
+
+
+# ---------------- DELETE ----------------
+@app.route('/delete/<int:notice_id>')
+def delete(notice_id):
+    try:
+        response = requests.delete(
+            f"{BASE_URL}/delete/{notice_id}",
+            headers=HEADERS
+        )
+
+        if response.status_code == 200:
+            flash("🗑️ Deleted successfully")
+        else:
+            flash("❌ Delete failed")
+
+    except Exception as e:
+        flash(f"⚠️ Error: {str(e)}")
+
+    return redirect('/view')
+
+
+# ---------------- UPDATE ----------------
+@app.route('/update/<int:notice_id>', methods=['GET', 'POST'])
+def update(notice_id):
+    if request.method == 'POST':
+        try:
+            data = {
+                "title": request.form['title'],
+                "content": request.form.get('content'),
+                "duration": request.form.get('duration')
+            }
+
+            response = requests.post(
+                f"{BASE_URL}/update/{notice_id}",
+                data=data,
+                headers=HEADERS
+            )
+
+            if response.status_code == 200:
+                flash("✏️ Updated successfully")
+            else:
+                flash("❌ Update failed")
+
+        except Exception as e:
+            flash(f"⚠️ Error: {str(e)}")
+
+        return redirect('/view')
+
+    return render_template('update.html', notice_id=notice_id)
 
 
 # ---------------- RUN ----------------
