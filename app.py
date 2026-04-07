@@ -8,6 +8,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# ------------------ CONFIG ------------------
 BASE_PATH = "/home/jcoetee/noticeboard"
 DB_PATH = os.path.join(BASE_PATH, "database.db")
 
@@ -15,18 +16,24 @@ IMAGE_FOLDER = os.path.join(BASE_PATH, "static/images")
 VIDEO_FOLDER = os.path.join(BASE_PATH, "static/videos")
 SLIDES_FOLDER = os.path.join(BASE_PATH, "static/slides")
 
+os.makedirs(IMAGE_FOLDER, exist_ok=True)
+os.makedirs(VIDEO_FOLDER, exist_ok=True)
+os.makedirs(SLIDES_FOLDER, exist_ok=True)
+
+# Global version tracker for auto-refresh
 LAST_UPDATED = time.time()
+
 
 # ------------------ DATABASE ------------------
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row   # ✅ IMPORTANT (gives dict-like access)
-    return conn
+    return sqlite3.connect(DB_PATH)
+
 
 # ------------------ VERSION API ------------------
 @app.route('/api/version')
 def get_version():
     return jsonify({"version": LAST_UPDATED})
+
 
 # ------------------ HOME DISPLAY ------------------
 @app.route('/')
@@ -40,26 +47,24 @@ def home():
     notices = []
 
     for row in rows:
-        notice = {
-            "id": row["id"],
-            "title": row["title"],
-            "type": row["media_type"],
-            "content": row["content"],
-            "file": row["file_path"],
-            "duration": row["duration"],
-            "slides": []
-        }
-
-        # Handle slideshow images
-        if notice["type"] == "slideshow" and notice["file"]:
-            folder = os.path.join(BASE_PATH, notice["file"])
+        notice = list(row)  # tuple -> list
+        # Add slides list if media_type == slideshow
+        if row[3] == 'slideshow' and row[4]:
+            folder = os.path.join(BASE_PATH, row[4])
             if os.path.exists(folder):
                 images = os.listdir(folder)
-                notice["slides"] = [notice["file"] + img for img in images]
+                # full paths relative to Flask static folder
+                images = [os.path.join(row[4], img).replace("\\","/") for img in images]
+                notice.append(images)
+            else:
+                notice.append([])
+        else:
+            notice.append([])
 
         notices.append(notice)
 
     return render_template('index.html', notices=notices)
+
 
 # ------------------ GET ALL NOTICES ------------------
 @app.route('/notices', methods=['GET'])
@@ -72,10 +77,10 @@ def get_notices():
     cursor.execute("SELECT * FROM notices ORDER BY id DESC")
     rows = cursor.fetchall()
     conn.close()
+    return jsonify(rows)
 
-    return jsonify([dict(row) for row in rows])
 
-# ------------------ UPLOAD ------------------
+# ------------------ UPLOAD (CREATE) ------------------
 @app.route('/upload', methods=['POST'])
 def upload():
     global LAST_UPDATED
@@ -89,12 +94,8 @@ def upload():
 
     conn = get_db()
     cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT INTO notices (title, media_type, duration)
-        VALUES (?, ?, ?)
-    """, (title, media_type, duration))
-
+    cursor.execute("INSERT INTO notices (title, media_type, duration) VALUES (?, ?, ?)",
+                   (title, media_type, duration))
     notice_id = cursor.lastrowid
     db_path = None
 
@@ -117,11 +118,9 @@ def upload():
         folder_name = f"event_{notice_id}"
         folder_path = os.path.join(SLIDES_FOLDER, folder_name)
         os.makedirs(folder_path, exist_ok=True)
-
         for file in files:
             filename = secure_filename(file.filename)
             file.save(os.path.join(folder_path, filename))
-
         db_path = f"static/slides/{folder_name}/"
 
     elif media_type == 'text':
@@ -135,8 +134,8 @@ def upload():
     conn.close()
 
     LAST_UPDATED = time.time()
-
     return jsonify({"status": "success", "id": notice_id})
+
 
 # ------------------ UPDATE ------------------
 @app.route('/update/<int:notice_id>', methods=['POST'])
@@ -155,10 +154,8 @@ def update_notice(notice_id):
 
     if title:
         cursor.execute("UPDATE notices SET title=? WHERE id=?", (title, notice_id))
-
     if content:
         cursor.execute("UPDATE notices SET content=? WHERE id=?", (content, notice_id))
-
     if duration:
         cursor.execute("UPDATE notices SET duration=? WHERE id=?", (duration, notice_id))
 
@@ -166,8 +163,8 @@ def update_notice(notice_id):
     conn.close()
 
     LAST_UPDATED = time.time()
-
     return jsonify({"status": "updated"})
+
 
 # ------------------ DELETE ------------------
 @app.route('/delete/<int:notice_id>', methods=['DELETE'])
@@ -179,34 +176,28 @@ def delete_notice(notice_id):
 
     conn = get_db()
     cursor = conn.cursor()
-
     cursor.execute("SELECT file_path, media_type FROM notices WHERE id=?", (notice_id,))
     row = cursor.fetchone()
 
     if row:
-        file_path = row["file_path"]
-        media_type = row["media_type"]
-
+        file_path, media_type = row
         if file_path:
             full_path = os.path.join(BASE_PATH, file_path)
-
-            if media_type == 'slideshow':
-                if os.path.exists(full_path):
-                    for f in os.listdir(full_path):
-                        os.remove(os.path.join(full_path, f))
-                    os.rmdir(full_path)
-            else:
-                if os.path.exists(full_path):
-                    os.remove(full_path)
+            if media_type == 'slideshow' and os.path.exists(full_path):
+                for f in os.listdir(full_path):
+                    os.remove(os.path.join(full_path, f))
+                os.rmdir(full_path)
+            elif os.path.exists(full_path):
+                os.remove(full_path)
 
     cursor.execute("DELETE FROM notices WHERE id=?", (notice_id,))
     conn.commit()
     conn.close()
 
     LAST_UPDATED = time.time()
-
     return jsonify({"status": "deleted"})
+
 
 # ------------------ RUN ------------------
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
