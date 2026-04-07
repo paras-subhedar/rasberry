@@ -55,16 +55,20 @@
 <!-- ================= VIEW SECTION ================= -->
 <div id="viewSection" class="view-section" style="display:none;">
 <h2>All Notices</h2>
+
 <table>
 <thead>
 <tr>
-<th>ID</th>
-<th>Title</th>
-<th>Type</th>
-<th>Actions</th>
+    <th>ID</th>
+    <th>Title</th>
+    <th>Type</th>
+    <th>Content</th>
+    <th>Actions</th>
 </tr>
 </thead>
+
 <tbody id="tableBody"></tbody>
+
 </table>
 </div>
 
@@ -86,6 +90,18 @@
 <button type="submit" class="btn">Update</button>
 
 </form>
+</div>
+</div>
+
+<!-- ================= CONTENT PREVIEW MODAL ================= -->
+<div id="contentModal" class="modal">
+<div class="modal-content" style="width:600px;">
+<span class="close" onclick="closeModal('contentModal')">&times;</span>
+
+<h2>Preview</h2>
+
+<div id="contentContainer" style="margin-top:15px;"></div>
+
 </div>
 </div>
 

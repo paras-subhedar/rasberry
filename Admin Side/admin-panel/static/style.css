@@ -44,10 +44,12 @@ body {
 
     background: rgba(0,0,0,0.7);
 
-    /* 🔥 THIS FIXES EVERYTHING */
-    display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.modal.show {
+    display: flex;
 }
 
 .modal-content {
