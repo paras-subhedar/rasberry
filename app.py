@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import time   # ✅ ADDED
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
@@ -14,9 +15,17 @@ IMAGE_FOLDER = os.path.join(BASE_PATH, "static/images")
 VIDEO_FOLDER = os.path.join(BASE_PATH, "static/videos")
 SLIDES_FOLDER = os.path.join(BASE_PATH, "static/slides")
 
+# ✅ ADDED: global version tracker
+LAST_UPDATED = time.time()
+
 # ------------------ DATABASE ------------------
 def get_db():
     return sqlite3.connect(DB_PATH)
+
+# ------------------ VERSION API (NEW) ------------------
+@app.route('/api/version')
+def get_version():
+    return jsonify({"version": LAST_UPDATED})
 
 # ------------------ HOME DISPLAY ------------------
 @app.route('/')
@@ -32,7 +41,6 @@ def home():
     for row in rows:
         notice = list(row)
 
-        # slideshow images
         if row[3] == 'slideshow' and row[4]:
             folder = os.path.join(BASE_PATH, row[4])
             if os.path.exists(folder):
@@ -65,9 +73,7 @@ def get_notices():
 # ------------------ UPLOAD (CREATE) ------------------
 @app.route('/upload', methods=['POST'])
 def upload():
-    print("REQUEST RECEIVED")
-    print("FORM DATA:", request.form)
-    print("FILES:", request.files)
+    global LAST_UPDATED   # ✅ ADDED
 
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
@@ -123,11 +129,15 @@ def upload():
     conn.commit()
     conn.close()
 
+    LAST_UPDATED = time.time()   # ✅ ADDED
+
     return jsonify({"status": "success", "id": notice_id})
 
 # ------------------ UPDATE ------------------
 @app.route('/update/<int:notice_id>', methods=['POST'])
 def update_notice(notice_id):
+    global LAST_UPDATED   # ✅ ADDED
+
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
 
@@ -138,7 +148,6 @@ def update_notice(notice_id):
     conn = get_db()
     cursor = conn.cursor()
 
-    # Update only provided fields
     if title:
         cursor.execute("UPDATE notices SET title=? WHERE id=?", (title, notice_id))
 
@@ -151,25 +160,27 @@ def update_notice(notice_id):
     conn.commit()
     conn.close()
 
+    LAST_UPDATED = time.time()   # ✅ ADDED
+
     return jsonify({"status": "updated"})
 
 # ------------------ DELETE ------------------
 @app.route('/delete/<int:notice_id>', methods=['DELETE'])
 def delete_notice(notice_id):
+    global LAST_UPDATED   # ✅ ADDED
+
     if request.headers.get("API-KEY") != "mysecret":
         return "Unauthorized", 403
 
     conn = get_db()
     cursor = conn.cursor()
 
-    # Get file path before deleting
     cursor.execute("SELECT file_path, media_type FROM notices WHERE id=?", (notice_id,))
     row = cursor.fetchone()
 
     if row:
         file_path, media_type = row
 
-        # Delete files if exist
         if file_path:
             full_path = os.path.join(BASE_PATH, file_path)
 
@@ -182,10 +193,11 @@ def delete_notice(notice_id):
                 if os.path.exists(full_path):
                     os.remove(full_path)
 
-    # Delete DB row
     cursor.execute("DELETE FROM notices WHERE id=?", (notice_id,))
     conn.commit()
     conn.close()
+
+    LAST_UPDATED = time.time()   # ✅ ADDED
 
     return jsonify({"status": "deleted"})
 

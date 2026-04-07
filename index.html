@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Digital Notice Board</title>
-
+	
     <style>
         body {
             margin: 0;
@@ -49,6 +49,12 @@
 
 <body>
 
+<div id="default-message" style="display:none; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center;">
+    <h1 style="font-size:4vw; text-align:center;">
+        Welcome to Electrical Engineering Department
+    </h1>
+</div>
+
 {% for notice in notices %}
 <div class="notice" data-duration="{{ notice[5] }}">
 
@@ -60,9 +66,9 @@
     {% elif notice[3] == 'image' %}
         <img src="{{ notice[4] }}">
 
-    {% elif notice[3] == 'video' %}
-        <video src="{{ notice[4] }}" autoplay muted></video>
-
+    {% elif notice[3] == 'video' %}		
+		<video src="{{ notice[4] }}" autoplay muted loop></video>
+		
     {% elif notice[3] == 'slideshow' %}
         {% for img in notice[7] %}
             <img class="slide" src="{{ img }}">
@@ -70,6 +76,7 @@
     {% endif %}
 
 </div>
+
 {% endfor %}
 
 <script>
@@ -77,11 +84,22 @@ let notices = document.querySelectorAll('.notice');
 let index = 0;
 
 function showNotice(i) {
-    notices.forEach(n => n.style.display = "none");
+	notices.forEach(n => {
+		n.style.display = "none";
 
+		let v = n.querySelector("video");
+		if (v) {
+			v.pause();
+			v.currentTime = 0;
+		}
+	});
     let current = notices[i];
     current.style.display = "flex";
-
+	
+	let v = current.querySelector("video");
+	if (v) {
+		v.play();
+	}
     let duration = (current.dataset.duration || 10) * 1000;
 
     /* -------- SLIDESHOW -------- */
@@ -114,8 +132,34 @@ function showNotice(i) {
 
 if (notices.length > 0) {
     showNotice(0);
+} else {
+    document.getElementById("default-message").style.display = "flex";
 }
 </script>
+<script>
+let currentVersion = null;
 
+async function checkForUpdates() {
+    try {
+        let res = await fetch('/api/version');
+        let data = await res.json();
+		
+		if (currentVersion === null) {
+			currentVersion = data.version;
+			return;
+		}
+		if (currentVersion !== data.version) {
+			console.log("New notice detected!");
+			location.reload();
+		}		
+
+    } catch (err) {
+        console.error("Update check failed", err);
+    }
+}
+
+// check every 10 seconds
+setInterval(checkForUpdates, 10000);
+</script>
 </body>
 </html>
